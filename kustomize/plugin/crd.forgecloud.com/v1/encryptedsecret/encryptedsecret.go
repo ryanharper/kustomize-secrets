@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"strings"
 
-	"cloud.google.com/go/secretmanager/apiv1beta1"
+	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	awssecretsmanager "github.com/aws/aws-sdk-go/service/secretsmanager"
 	"github.com/pkg/errors"
-	secretspb "google.golang.org/genproto/googleapis/cloud/secrets/v1beta1"
+	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
 	"sigs.k8s.io/kustomize/api/kv"
 	"sigs.k8s.io/kustomize/api/resmap"
 	"sigs.k8s.io/kustomize/api/types"
@@ -87,7 +87,7 @@ func (p *plugin) getGCPSecrets() (secrets map[string]string, err error) {
 	for _, key := range p.Keys {
 		sanitizedKeyName := sanitizeKeyName(key)
 		name := fmt.Sprintf("projects/%s/secrets/%s_%s/versions/latest", p.GCPProjectID, p.Metadata.Name, sanitizedKeyName)
-		request := &secretspb.AccessSecretVersionRequest{Name: name}
+		request := &secretmanagerpb.AccessSecretVersionRequest{Name: name}
 		secret, err := client.AccessSecretVersion(ctx, request)
 		if err != nil {
 			return nil, errors.Wrapf(err, "trouble retrieving secret: %s", name)
@@ -140,11 +140,12 @@ func (p *plugin) makeResMap(secrets map[string]string) (resmap.ResMap, error) {
 	for key, value := range secrets {
 		args.LiteralSources = append(args.LiteralSources, key+"="+value)
 	}
-	options := &types.GeneratorOptions{
-		DisableNameSuffixHash: p.DisableNameSuffixHash,
-	}
+	// options := &types.GeneratorOptions{
+	// 	DisableNameSuffixHash: p.DisableNameSuffixHash,
+	// }
+	//p.DisableNameSuffixHash = p.B
 	return p.helpers.ResmapFactory().FromSecretArgs(
-		kv.NewLoader(p.helpers.Loader(), p.helpers.Validator()), options, args)
+		kv.NewLoader(p.helpers.Loader(), p.helpers.Validator()), args)
 }
 
 func sanitizeKeyName(name string) string {
